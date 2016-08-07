@@ -1,0 +1,10 @@
+[package]
+name = "PaenkoCore"
+version = "0.1.0"
+authors = ["Kevin Per <kevp.per@gmail.com>"]
+
+[dependencies]
+clippy = "*"
+capnp = "0.6"
+capnp-nonblock="0.3.0"
+mio = "0.5.0"
