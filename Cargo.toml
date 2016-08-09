@@ -1,7 +1,7 @@
 [package]
-name = "PaenkoCore"
+name = "PaenkoDb"
 version = "0.1.0"
-authors = ["Kevin Per <kevp.per@gmail.com>"]
+authors = ["Kevin Per <kevp.per@gmail.com>","Florian Hanko <f.hanko98@htl-ottakring.ac.at"]
 
 [dependencies]
 clippy = "*"
