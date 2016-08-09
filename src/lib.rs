@@ -4,6 +4,7 @@
 extern crate mio;
 extern crate capnp;
 extern crate capnp_nonblock;
+extern crate uuid;
 
 pub mod network;
 pub mod messages;
