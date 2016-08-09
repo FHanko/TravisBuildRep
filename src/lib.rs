@@ -9,6 +9,7 @@ pub mod network;
 pub mod messages;
 pub mod util;
 pub mod io;
+pub mod state;
 
 pub mod messages_capnp {
     include!("messages/messages_capnp.rs");
