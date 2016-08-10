@@ -1,4 +1,4 @@
-use mio::{EventLoop, Handler, EventSet, PollOpt, Token};
+use mio::{EventLoop, Handler, EventSet, PollOpt, Token, Timeout};
 use mio::tcp::{TcpListener, TcpStream};
 use mio::util::Slab;
 use std::net::SocketAddr;
@@ -8,45 +8,84 @@ use capnp_nonblock::{MessageStream, Segments};
 use capnp::serialize::read_message;
 use capnp::Result;
 use std::rc::Rc;
+use consensus::{Consensus, ConsensusTimeout};
 
 pub struct Server {
     pub id: String,
     pub server: TcpListener,
     pub connections: Slab<Connection>,
     addr: SocketAddr,
+    consensus: Option<Consensus>,
+}
+
+#[derive(Copy,Clone)]
+pub enum ServerTimeout {
+    NetworkTimeout,
+    ConsensusTimeout(ConsensusTimeout),
 }
 
 const SERVER: Token = Token(0);
 
 impl Server {
-    fn new() -> Self {
+    pub fn new(event_loop: &mut EventLoop<Server>) -> (Server, EventLoop<Server>) {
+
+        let mut event_loop = EventLoop::new().unwrap();
+
         let addr = "0.0.0.0:1337".parse().unwrap();
         let server = TcpListener::bind(&addr).unwrap();
-        Server {
+
+        event_loop.register(&server, SERVER, EventSet::all(), PollOpt::edge()).unwrap();
+
+
+        let mut myServer = Server {
             id: "".to_string(),
             server: server,
             connections: Slab::new_starting_at(Token(1), 257),
             addr: addr,
+            consensus: None,
+        };
+
+        let consensus = myServer.init_consensus(&mut event_loop);
+        myServer.consensus = Some(consensus);
+
+
+        event_loop.run(&mut myServer).unwrap();
+
+        (myServer, event_loop)
+    }
+
+    fn init_consensus(&self, event_loop: &mut EventLoop<Server>) -> Consensus {
+        let heartbeat = ConsensusTimeout::HeartbeatTimeout;
+        let electionTimeout = ConsensusTimeout::ElectionTimeout;
+
+        let heartbeat = self.set_timeout(event_loop, ServerTimeout::ConsensusTimeout(heartbeat))
+            .unwrap();
+        let election =
+            self.set_timeout(event_loop, ServerTimeout::ConsensusTimeout(electionTimeout)).unwrap();
+
+        Consensus {
+            heartbeat_handler: heartbeat,
+            election_handler: election,
         }
     }
 
-    pub fn run() -> (Server, EventLoop<Server>) {
-        let mut event_loop = EventLoop::new().unwrap();
 
-        let mut server = Self::new();
-        event_loop.register(&server.server, SERVER, EventSet::all(), PollOpt::edge())
-            .unwrap();
-
-
-        event_loop.run(&mut server).unwrap();
-
-        (server, event_loop)
+    pub fn set_timeout(&self,
+                       event_loop: &mut EventLoop<Server>,
+                       timeout_type: ServerTimeout)
+                       -> Option<Timeout> {
+        match timeout_type {
+            ServerTimeout::ConsensusTimeout(c) => {
+                Some(event_loop.timeout_ms(timeout_type, c.get_duration()).unwrap())
+            }
+            ServerTimeout::NetworkTimeout => None,
+        }
     }
 }
 
 impl Handler for Server {
     type Message = ();
-    type Timeout = ();
+    type Timeout = ServerTimeout;
 
     fn ready(&mut self, event_loop: &mut EventLoop<Server>, token: Token, events: EventSet) {
         match token {
@@ -68,6 +107,7 @@ impl Handler for Server {
                 }
             } 
             _ => {
+                // TODO send message when server gets connected
                 // let connection_preamble = server_connection_preamble(self.id, &self.addr);
                 // self.connections[token].ready(event_loop, events, connection_preamble);
             }
