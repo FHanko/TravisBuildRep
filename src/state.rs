@@ -1,14 +1,15 @@
 use util::ServerId;
 use std::collections::HashSet;
+use std::cell::RefCell;
 
-#[derive(Clone)]
+#[derive(Clone,Copy)]
 enum State {
     Follower,
     Leader,
     Candidate,
 }
 
-#[derive(Clone)]
+#[derive(Clone,Copy)]
 pub struct StateMachine {
     server_id: ServerId,
     current_term: u64,
@@ -79,7 +80,7 @@ impl StateMachine {
         }
     }
 
-    pub fn timeout(self) {
+    pub fn election_timeout(self) {
         match self.state {
             State::Follower => {
                 match self.follower_state.clone() {
@@ -113,7 +114,7 @@ impl StateMachine {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone,Copy)]
 struct FollowerState {
     voted_for: Option<ServerId>,
 }
@@ -136,7 +137,7 @@ impl FollowerState {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone,Copy)]
 struct CandidateState {
     voted_for: ServerId, // vote for self
     votes: HashSet<ServerId>,
@@ -167,7 +168,7 @@ impl CandidateState {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone,Copy)]
 struct LeaderState;
 
 impl LeaderState {

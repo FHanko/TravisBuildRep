@@ -1,6 +1,8 @@
 use network::{Server, ServerTimeout};
 use mio::{EventLoop, Timeout};
 use rand::{self, Rng};
+use state::StateMachine;
+use std::cell::RefCell;
 
 const HEART_BEAT: u64 = 1000;
 const MIN_ELECTION: u64 = 1000;
@@ -26,6 +28,7 @@ impl ConsensusTimeout {
 pub struct Consensus {
     pub heartbeat_handler: Timeout,
     pub election_handler: Timeout,
+    pub state_machine: StateMachine,
 }
 
 impl Consensus {
@@ -36,8 +39,9 @@ impl Consensus {
         self.election_handler = handler;
 
         // TODO implement Statemachine
-        unimplemented!()
+        self.state_machine.election_timeout();
     }
+
     pub fn heartbeat_timeout(&mut self, server: &Server, event_loop: &mut EventLoop<Server>) {
         let handler = server.set_timeout(event_loop,
                          ServerTimeout::ConsensusTimeout(ConsensusTimeout::HeartbeatTimeout))

@@ -9,9 +9,11 @@ use capnp::serialize::read_message;
 use capnp::Result;
 use std::rc::Rc;
 use consensus::{Consensus, ConsensusTimeout};
+use state::StateMachine;
+use util::ServerId;
 
 pub struct Server {
-    pub id: String,
+    pub id: ServerId,
     pub server: TcpListener,
     pub connections: Slab<Connection>,
     addr: SocketAddr,
@@ -38,7 +40,7 @@ impl Server {
 
 
         let mut myServer = Server {
-            id: "".to_string(),
+            id: ServerId(0),
             server: server,
             connections: Slab::new_starting_at(Token(1), 257),
             addr: addr,
@@ -47,7 +49,6 @@ impl Server {
 
         let consensus = myServer.init_consensus(&mut event_loop);
         myServer.consensus = Some(consensus);
-
 
         event_loop.run(&mut myServer).unwrap();
 
@@ -63,9 +64,12 @@ impl Server {
         let election =
             self.set_timeout(event_loop, ServerTimeout::ConsensusTimeout(electionTimeout)).unwrap();
 
+        let state_machine = StateMachine::new(self.id);
+
         Consensus {
             heartbeat_handler: heartbeat,
             election_handler: election,
+            state_machine: state_machine,
         }
     }
 
@@ -113,6 +117,8 @@ impl Handler for Server {
             }
         }
     }
+
+    fn timeout(&mut self, event_loop: &mut EventLoop<Server>, timeout: Self::Timeout) {}
 }
 
 pub struct Connection {

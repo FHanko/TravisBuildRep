@@ -1,7 +1,7 @@
 use uuid::Uuid;
 
 #[derive(Debug,Clone,Copy,Eq,PartialEq,Hash)]
-pub struct ServerId(u64);
+pub struct ServerId(pub u64);
 
 impl ServerId {
     pub fn as_u64(&self) -> u64 {
