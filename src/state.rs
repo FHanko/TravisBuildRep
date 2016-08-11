@@ -111,6 +111,10 @@ impl StateMachine {
             }
         }
     }
+
+    pub fn heartbeat_timeout(self) {
+        debug!("Heartbeat timeout");
+    }
 }
 
 #[derive(Clone,Copy)]
@@ -128,7 +132,7 @@ impl FollowerState {
     }
 
     fn timeout(self) {
-        unimplemented!()
+        debug!("Follower timeout")
     }
 
     fn vote_for(&mut self, v: ServerId) {
@@ -159,7 +163,7 @@ impl CandidateState {
     }
 
     fn timeout(self) {
-        unimplemented!()
+        debug!("Candidate timeout")
     }
 
     fn got_voted(&mut self, v: ServerId) {
@@ -187,6 +191,6 @@ impl LeaderState {
     }
 
     fn timeout(self) {
-        unimplemented!()
+        debug!("Leader timeout")
     }
 }

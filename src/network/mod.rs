@@ -11,6 +11,8 @@ use std::rc::Rc;
 use consensus::{Consensus, ConsensusTimeout};
 use state::StateMachine;
 use util::ServerId;
+use messages::rpc::server_connection_preamble;
+use std::collections::HashMap;
 
 pub struct Server {
     pub id: ServerId,
@@ -29,12 +31,15 @@ pub enum ServerTimeout {
 const SERVER: Token = Token(0);
 
 impl Server {
-    pub fn new(event_loop: &mut EventLoop<Server>) -> (Server, EventLoop<Server>) {
+    pub fn new(localAddr: SocketAddr,
+               peers: HashMap<ServerId, SocketAddr>)
+               -> (Server, EventLoop<Server>) {
+
+        debug!("Start program");
 
         let mut event_loop = EventLoop::new().unwrap();
 
-        let addr = "0.0.0.0:1337".parse().unwrap();
-        let server = TcpListener::bind(&addr).unwrap();
+        let server = TcpListener::bind(&localAddr).unwrap();
 
         event_loop.register(&server, SERVER, EventSet::all(), PollOpt::edge()).unwrap();
 
@@ -43,12 +48,36 @@ impl Server {
             id: ServerId(0),
             server: server,
             connections: Slab::new_starting_at(Token(1), 257),
-            addr: addr,
+            addr: localAddr,
             consensus: None,
         };
 
         let consensus = myServer.init_consensus(&mut event_loop);
         myServer.consensus = Some(consensus);
+
+        // TODO better error handling
+        // TODO code refactoring
+        for (peer_id, peer_addr) in peers {
+            match TcpStream::connect(&peer_addr) {
+                Ok(stream) => {
+                    let token = myServer.connections
+                        .insert_with(|token| Connection::new_peer(token, stream))
+                        .unwrap();
+
+                    match event_loop.register(myServer.connections[token].socket.inner(),
+                                              token,
+                                              EventSet::readable(),
+                                              PollOpt::edge() | PollOpt::oneshot()) {
+                        Ok(_) => info!("peer added"),
+                        Err(err) => error!("{}", err),
+                    }
+
+                }
+                Err(err) => {
+                    error!("Cannot connect to peer {}", peer_addr);
+                }
+            };
+        }
 
         event_loop.run(&mut myServer).unwrap();
 
@@ -106,19 +135,33 @@ impl Handler for Server {
                                       PollOpt::edge() | PollOpt::oneshot())
                             .unwrap();
                     } 
-                    Ok(None) => println!("socket was not actually ready"),
-                    Err(e) => println!("listener.accept() errored"),
+                    Ok(None) => error!("socket was not actually ready"),
+                    Err(e) => error!("listener.accept() errored"),
                 }
             } 
             _ => {
-                // TODO send message when server gets connected
-                // let connection_preamble = server_connection_preamble(self.id, &self.addr);
-                // self.connections[token].ready(event_loop, events, connection_preamble);
+                self.connections[token].ready(event_loop, events, self.id, self.addr);
             }
         }
     }
 
-    fn timeout(&mut self, event_loop: &mut EventLoop<Server>, timeout: Self::Timeout) {}
+    fn timeout(&mut self, event_loop: &mut EventLoop<Server>, timeout: Self::Timeout) {
+        match timeout {
+            ServerTimeout::NetworkTimeout => {
+                error!("There is a network timeout");
+            }
+            ServerTimeout::ConsensusTimeout(ct) => {
+                match ct {
+                    ConsensusTimeout::HeartbeatTimeout => {
+                        self.consensus.clone().unwrap().heartbeat_timeout(&self, event_loop);
+                    }
+                    ConsensusTimeout::ElectionTimeout => {
+                        self.consensus.clone().unwrap().election_timeout(&self, event_loop);
+                    }
+                }
+            }
+        }
+    }
 }
 
 pub struct Connection {
@@ -137,10 +180,25 @@ impl Connection {
     pub fn ready(&mut self,
                  event_loop: &mut EventLoop<Server>,
                  events: EventSet,
-                 connection_preamble: Rc<Builder<HeapAllocator>>) {
+                 id: ServerId,
+                 addr: SocketAddr) {
+
         if events.is_readable() {
-            Self::read(self);
+            let message = Self::read(self);
+
+            match message {
+                Ok(op) => {
+                    match op {
+                        Some(m) => {
+                            debug!("Message received");
+                        }
+                        None => {}
+                    }
+                }
+                Err(err) => info!("no message received"),
+            }
         } else if events.is_writable() {
+            let connection_preamble = server_connection_preamble(id, &addr);
             Self::write(self, connection_preamble);
         }
 
@@ -168,5 +226,12 @@ impl Connection {
 
     fn write(&mut self, message: Rc<Builder<HeapAllocator>>) {
         self.socket.write_message(message);
+    }
+
+    pub fn new_peer(token: Token, stream: TcpStream) -> Self {
+        Connection {
+            socket: MessageStream::new(stream, ReaderOptions::new()),
+            token: token,
+        }
     }
 }

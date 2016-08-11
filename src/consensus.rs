@@ -2,7 +2,6 @@ use network::{Server, ServerTimeout};
 use mio::{EventLoop, Timeout};
 use rand::{self, Rng};
 use state::StateMachine;
-use std::cell::RefCell;
 
 const HEART_BEAT: u64 = 1000;
 const MIN_ELECTION: u64 = 1000;
@@ -25,6 +24,7 @@ impl ConsensusTimeout {
     }
 }
 
+#[derive(Clone)]
 pub struct Consensus {
     pub heartbeat_handler: Timeout,
     pub election_handler: Timeout,
@@ -38,7 +38,6 @@ impl Consensus {
             .unwrap();
         self.election_handler = handler;
 
-        // TODO implement Statemachine
         self.state_machine.clone().election_timeout();
     }
 
@@ -48,7 +47,6 @@ impl Consensus {
             .unwrap();
         self.heartbeat_handler = handler;
 
-        // TODO implement Statemachine
-        unimplemented!()
+        self.state_machine.clone().heartbeat_timeout();
     }
 }
