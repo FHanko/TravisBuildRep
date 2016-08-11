@@ -2,7 +2,6 @@ use mio::{EventLoop, Handler, EventSet, PollOpt, Token, Timeout};
 use mio::tcp::{TcpListener, TcpStream};
 use mio::util::Slab;
 use std::net::SocketAddr;
-use std::io::{Read, Write};
 use capnp::message::{Builder, HeapAllocator, ReaderOptions, Reader};
 use capnp_nonblock::{MessageStream, Segments};
 use capnp::serialize::read_message;
@@ -73,7 +72,7 @@ impl Server {
                     }
 
                 }
-                Err(err) => {
+                Err(_) => {
                     error!("Cannot connect to peer {}", peer_addr);
                 }
             };
@@ -136,7 +135,7 @@ impl Handler for Server {
                             .unwrap();
                     } 
                     Ok(None) => error!("socket was not actually ready"),
-                    Err(e) => error!("listener.accept() errored"),
+                    Err(_) => error!("listener.accept() errored"),
                 }
             } 
             _ => {
@@ -192,13 +191,15 @@ impl Connection {
                         Some(m) => {
                             debug!("Message received");
                         }
-                        None => {}
+                        None => unimplemented!(),
                     }
                 }
-                Err(err) => info!("no message received"),
+                Err(_) => info!("no message received"),
             }
         } else if events.is_writable() {
             let connection_preamble = server_connection_preamble(id, &addr);
+
+            // TODO error handling
             Self::write(self, connection_preamble);
         }
 
@@ -224,8 +225,10 @@ impl Connection {
         self.socket.read_message().map_err(From::from)
     }
 
-    fn write(&mut self, message: Rc<Builder<HeapAllocator>>) {
-        self.socket.write_message(message);
+    fn write(&mut self, message: Rc<Builder<HeapAllocator>>) -> Result<()> {
+        try!(self.socket.write_message(message));
+
+        Ok(())
     }
 
     pub fn new_peer(token: Token, stream: TcpStream) -> Self {

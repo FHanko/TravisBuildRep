@@ -53,7 +53,7 @@ impl StateMachine {
     pub fn append_entry(&mut self) {
         match self.state {
             State::Follower => {
-                match self.follower_state.clone() {
+                match self.follower_state {
                     Some(mut follower_state) => {
                         follower_state.append_entry();
                     }
@@ -69,7 +69,7 @@ impl StateMachine {
                 }
             }
             State::Leader => {
-                match self.leader_state.clone() {
+                match self.leader_state {
                     Some(mut leader_state) => {
                         leader_state.append_entry(self);
                     }
@@ -82,7 +82,7 @@ impl StateMachine {
     pub fn election_timeout(self) {
         match self.state {
             State::Follower => {
-                match self.follower_state.clone() {
+                match self.follower_state {
                     Some(follower_state) => {
 
                         // Transition to candidate
@@ -102,7 +102,7 @@ impl StateMachine {
                 }
             }
             State::Leader => {
-                match self.leader_state.clone() {
+                match self.leader_state {
                     Some(leader_state) => {
                         leader_state.timeout();
                     }

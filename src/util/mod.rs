@@ -9,6 +9,7 @@ impl ServerId {
     }
 }
 
+#[derive(Default)]
 pub struct ClientId(Uuid);
 
 impl ClientId {

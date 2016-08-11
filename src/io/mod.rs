@@ -9,8 +9,8 @@ pub trait Log {
     fn set_term(&self, t: Term);
     fn get_term(&self) -> Option<Term>;
 
-    fn get_commitIndex(&self) -> u64;
-    fn set_commitIndex(&self, index: u64);
+    fn get_commit_index(&self) -> u64;
+    fn set_commit_index(&self, index: u64);
 
     fn write(&self, m: &Message);
     fn read(&self) -> &Message;
