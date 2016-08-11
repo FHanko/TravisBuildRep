@@ -39,7 +39,7 @@ impl Consensus {
         self.election_handler = handler;
 
         // TODO implement Statemachine
-        self.state_machine.election_timeout();
+        self.state_machine.clone().election_timeout();
     }
 
     pub fn heartbeat_timeout(&mut self, server: &Server, event_loop: &mut EventLoop<Server>) {

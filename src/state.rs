@@ -1,6 +1,5 @@
 use util::ServerId;
 use std::collections::HashSet;
-use std::cell::RefCell;
 
 #[derive(Clone,Copy)]
 enum State {
@@ -9,7 +8,7 @@ enum State {
     Candidate,
 }
 
-#[derive(Clone,Copy)]
+#[derive(Clone)]
 pub struct StateMachine {
     server_id: ServerId,
     current_term: u64,
@@ -137,7 +136,7 @@ impl FollowerState {
     }
 }
 
-#[derive(Clone,Copy)]
+#[derive(Clone)]
 struct CandidateState {
     voted_for: ServerId, // vote for self
     votes: HashSet<ServerId>,
