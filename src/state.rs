@@ -50,12 +50,12 @@ impl StateMachine {
         self.commit_index += 1;
     }
 
-    pub fn apply(&mut self) {
+    pub fn append_entry(&mut self) {
         match self.state {
             State::Follower => {
                 match self.follower_state.clone() {
                     Some(mut follower_state) => {
-                        follower_state.apply();
+                        follower_state.append_entry();
                     }
                     None => panic!("follower_state is None"),
                 }
@@ -63,7 +63,7 @@ impl StateMachine {
             State::Candidate => {
                 match self.candidate_state.clone() {
                     Some(mut candidate_state) => {
-                        candidate_state.apply();
+                        candidate_state.append_entry();
                     }
                     None => panic!("candidate_state is None"),
                 }
@@ -123,7 +123,7 @@ impl FollowerState {
         FollowerState { voted_for: None }
     }
 
-    fn apply(&mut self) {
+    fn append_entry(&mut self) {
         unimplemented!()
     }
 
@@ -154,7 +154,7 @@ impl CandidateState {
         c
     }
 
-    fn apply(&mut self) {
+    fn append_entry(&mut self) {
         unimplemented!()
     }
 
@@ -175,17 +175,14 @@ impl LeaderState {
         LeaderState
     }
 
-    fn apply(&mut self, s: &StateMachine) {
+    fn append_entry(&mut self, s: &StateMachine) {
         match s.leader_id {
             Some(leader_id) => {
                 assert_eq!(leader_id, s.server_id);
 
                 unimplemented!()
             }
-            None => {
-                panic!("Something didn't worked out! You cannot apply a message when no leader is \
-                        chosen")
-            }
+            None => panic!("Something didn't work! There is no leader!"),
         }
     }
 
