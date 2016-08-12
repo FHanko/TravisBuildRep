@@ -78,9 +78,13 @@ impl Server {
             };
         }
 
-        event_loop.run(&mut myServer).unwrap();
-
         (myServer, event_loop)
+    }
+
+    pub fn run(local_addr: SocketAddr, peers: HashMap<ServerId, SocketAddr>) {
+        let (mut server, mut event_loop) = Server::new(local_addr, peers);
+
+        event_loop.run(&mut server);
     }
 
     fn init_consensus(&self, event_loop: &mut EventLoop<Server>) -> Consensus {
@@ -261,7 +265,7 @@ mod tests {
     use util::*;
 
     fn new_server(peers: HashMap<ServerId, SocketAddr>) -> (Server, EventLoop<Server>) {
-        let addr: SocketAddr = "127.0.0.1:1337".parse().unwrap();
+        let addr: SocketAddr = "127.0.0.1:0".parse().unwrap();
         let (mut server, mut event_loop) = Server::new(addr, peers);
 
         (server, event_loop)

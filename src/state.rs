@@ -1,4 +1,4 @@
-use util::ServerId;
+use util::{ServerId, Term, LogIndex};
 use std::collections::HashSet;
 
 #[derive(Clone,Copy)]
@@ -11,9 +11,9 @@ enum State {
 #[derive(Clone)]
 pub struct StateMachine {
     server_id: ServerId,
-    current_term: u64,
-    commit_index: u64,
-    last_applied: u64,
+    current_term: Term,
+    commit_index: LogIndex,
+    last_applied: LogIndex,
     leader_id: Option<ServerId>,
     state: State,
 
@@ -27,9 +27,9 @@ impl StateMachine {
     pub fn new(server_id: ServerId) -> Self {
         StateMachine {
             server_id: server_id,
-            current_term: 0,
-            commit_index: 0,
-            last_applied: 0,
+            current_term: Term(0),
+            commit_index: LogIndex(0),
+            last_applied: LogIndex(0),
             leader_id: None,
             state: State::Follower,
             follower_state: Some(FollowerState::new()),
@@ -38,8 +38,10 @@ impl StateMachine {
         }
     }
 
+    // TODO
     pub fn set_term(&mut self, i: u64) {
-        self.current_term = i;
+        // self.current_term = i;
+        unimplemented!()
     }
 
     pub fn set_leader(&mut self, leader_id: ServerId) {
@@ -47,7 +49,8 @@ impl StateMachine {
     }
 
     pub fn commit(&mut self) {
-        self.commit_index += 1;
+        // self.commit_index += 1;
+        unimplemented!()
     }
 
     pub fn append_entry(&mut self) {
