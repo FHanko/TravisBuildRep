@@ -40,7 +40,7 @@ impl Server {
 
         let server = TcpListener::bind(&localAddr).unwrap();
 
-        event_loop.register(&server, SERVER, EventSet::all(), PollOpt::edge()).unwrap();
+        event_loop.register(&server, SERVER, EventSet::readable(), PollOpt::edge()).unwrap();
 
 
         let mut myServer = Server {
@@ -133,12 +133,16 @@ impl Handler for Server {
                                       EventSet::readable(),
                                       PollOpt::edge() | PollOpt::oneshot())
                             .unwrap();
+
+                        let connection_preamble = server_connection_preamble(self.id, &self.addr);
+                        self.connections[token].write(connection_preamble);
                     } 
                     Ok(None) => error!("socket was not actually ready"),
                     Err(_) => error!("listener.accept() errored"),
                 }
             } 
             _ => {
+                debug!("client socket is ready");
                 self.connections[token].ready(event_loop, events, self.id, self.addr);
             }
         }
@@ -191,16 +195,14 @@ impl Connection {
                         Some(m) => {
                             debug!("Message received");
                         }
-                        None => unimplemented!(),
+                        None => info!("empty message received"),
                     }
                 }
-                Err(_) => info!("no message received"),
+                Err(err) => error!("{}", err),
             }
         } else if events.is_writable() {
-            let connection_preamble = server_connection_preamble(id, &addr);
 
-            // TODO error handling
-            Self::write(self, connection_preamble);
+            self.flush();
         }
 
         Self::reregister(self, event_loop, events);
@@ -229,6 +231,10 @@ impl Connection {
         try!(self.socket.write_message(message));
 
         Ok(())
+    }
+
+    fn flush(&mut self) {
+        self.socket.write();
     }
 
     pub fn new_peer(token: Token, stream: TcpStream) -> Self {
