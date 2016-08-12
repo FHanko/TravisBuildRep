@@ -244,3 +244,58 @@ impl Connection {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use mio::*;
+    use mio::tcp::*;
+    use std::net::SocketAddr;
+    use std::collections::HashMap;
+
+    use capnp::message::ReaderOptions;
+    use capnp::serialize;
+    use std::io::{self, Read};
+    use messages_capnp::connection_preamble;
+
+    use network::Server;
+    use util::*;
+
+    fn new_server(peers: HashMap<ServerId, SocketAddr>) -> (Server, EventLoop<Server>) {
+        let addr: SocketAddr = "127.0.0.1:1337".parse().unwrap();
+        let (mut server, mut event_loop) = Server::new(addr, peers);
+
+        (server, event_loop)
+    }
+
+    fn read_server_preamble<R>(read: &mut R) -> ServerId
+        where R: Read
+    {
+        let message = serialize::read_message(read, ReaderOptions::new()).unwrap();
+        let preamble = message.get_root::<connection_preamble::Reader>().unwrap();
+
+        match preamble.get_id().which().unwrap() {
+            connection_preamble::id::Which::Server(peer) => ServerId(peer.unwrap().get_id()),
+            _ => panic!("unexpected preamble id"),
+        }
+    }
+
+    // FIXME test doesn't work because server doesn't get preamble
+    #[test]
+    fn test_peer_connect() {
+        let peer_id = ServerId(1);
+
+        let peer_listener = TcpListener::bind(&"127.0.0.1:0".parse().unwrap()).unwrap();
+
+        let mut peers = HashMap::new();
+        peers.insert(peer_id, peer_listener.local_addr().unwrap());
+        let (mut server, mut event_loop) = new_server(peers);
+
+        let op = peer_listener.accept().unwrap();
+
+        match op {
+            Some((mut stream, _)) => assert_eq!(ServerId(0), read_server_preamble(&mut stream)),
+            None => panic!("unexpected"),
+        }
+
+    }
+}
