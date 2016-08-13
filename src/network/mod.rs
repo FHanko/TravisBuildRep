@@ -16,6 +16,7 @@ pub struct Server {
     pub id: ServerId,
     pub server: TcpListener,
     pub connections: Slab<Connection>,
+    addr: SocketAddr,
     consensus: Option<Consensus>,
 }
 
