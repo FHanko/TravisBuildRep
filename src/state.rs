@@ -1,7 +1,7 @@
 use util::ServerId;
 use std::collections::HashSet;
 
-#[derive(Clone,Copy)]
+#[derive(Clone, Copy)]
 enum State {
     Follower,
     Leader,
@@ -113,7 +113,7 @@ impl StateMachine {
     }
 }
 
-#[derive(Clone,Copy)]
+#[derive(Clone, Copy)]
 struct FollowerState {
     voted_for: Option<ServerId>,
 }

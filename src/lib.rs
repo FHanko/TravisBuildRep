@@ -1,5 +1,14 @@
 #![feature(plugin)]
 #![plugin(clippy)]
+//Perm allow (don't care)
+#![allow(non_snake_case)]
+#![allow(enum_variant_names)]
+
+//Dev allow (dont't care at the moment)
+#![allow(unused_variables)]
+#![allow(single_match)]
+#![allow(dead_code)]
+#![allow(clone_on_copy)]
 
 extern crate mio;
 extern crate capnp;

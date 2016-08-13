@@ -1,6 +1,6 @@
 use uuid::Uuid;
 
-#[derive(Debug,Clone,Copy,Eq,PartialEq,Hash)]
+#[derive(Debug,Clone,Eq,PartialEq,Hash, Copy)]
 pub struct ServerId(pub u64);
 
 impl ServerId {
@@ -9,6 +9,7 @@ impl ServerId {
     }
 }
 
+#[derive(Default)]
 pub struct ClientId(Uuid);
 
 impl ClientId {
@@ -21,7 +22,7 @@ impl ClientId {
     }
 }
 
-#[derive(Copy,Clone)]
+#[derive(Clone, Copy)]
 pub struct Term(u64);
 
 impl Term {

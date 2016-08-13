@@ -2,10 +2,8 @@ use mio::{EventLoop, Handler, EventSet, PollOpt, Token, Timeout};
 use mio::tcp::{TcpListener, TcpStream};
 use mio::util::Slab;
 use std::net::SocketAddr;
-use std::io::{Read, Write};
 use capnp::message::{Builder, HeapAllocator, ReaderOptions, Reader};
 use capnp_nonblock::{MessageStream, Segments};
-use capnp::serialize::read_message;
 use capnp::Result;
 use std::rc::Rc;
 use consensus::{Consensus, ConsensusTimeout};
@@ -16,7 +14,6 @@ pub struct Server {
     pub id: ServerId,
     pub server: TcpListener,
     pub connections: Slab<Connection>,
-    addr: SocketAddr,
     consensus: Option<Consensus>,
 }
 
@@ -29,7 +26,7 @@ pub enum ServerTimeout {
 const SERVER: Token = Token(0);
 
 impl Server {
-    pub fn new(event_loop: &mut EventLoop<Server>) -> (Server, EventLoop<Server>) {
+    pub fn new() -> (Server, EventLoop<Server>) { //
 
         let mut event_loop = EventLoop::new().unwrap();
 
@@ -43,7 +40,6 @@ impl Server {
             id: ServerId(0),
             server: server,
             connections: Slab::new_starting_at(Token(1), 257),
-            addr: addr,
             consensus: None,
         };
 
@@ -139,7 +135,7 @@ impl Connection {
                  events: EventSet,
                  connection_preamble: Rc<Builder<HeapAllocator>>) {
         if events.is_readable() {
-            Self::read(self);
+            Self::read(self).unwrap();
         } else if events.is_writable() {
             Self::write(self, connection_preamble);
         }
@@ -167,6 +163,6 @@ impl Connection {
     }
 
     fn write(&mut self, message: Rc<Builder<HeapAllocator>>) {
-        self.socket.write_message(message);
+        self.socket.write_message(message).unwrap();
     }
 }

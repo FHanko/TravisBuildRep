@@ -2,7 +2,7 @@ use network::{Server, ServerTimeout};
 use mio::{EventLoop, Timeout};
 use rand::{self, Rng};
 use state::StateMachine;
-use std::cell::RefCell;
+//use std::cell::RefCell;
 
 const HEART_BEAT: u64 = 1000;
 const MIN_ELECTION: u64 = 1000;
