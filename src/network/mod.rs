@@ -283,7 +283,6 @@ mod tests {
     #[test]
     fn test_peer_connect() {
         let peer_id = ServerId(1);
-
         let peer_listener = TcpListener::bind(&"127.0.0.1:0".parse().unwrap()).unwrap();
 
         let mut peers = HashMap::new();
