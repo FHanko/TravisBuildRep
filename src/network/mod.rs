@@ -81,10 +81,14 @@ impl Server {
         (myServer, event_loop)
     }
 
-    pub fn run(local_addr: SocketAddr, peers: HashMap<ServerId, SocketAddr>) {
+    pub fn run(local_addr: SocketAddr,
+               peers: HashMap<ServerId, SocketAddr>)
+               -> (Server, EventLoop<Server>) {
         let (mut server, mut event_loop) = Server::new(local_addr, peers);
 
         event_loop.run(&mut server);
+
+        (server, event_loop)
     }
 
     fn init_consensus(&self, event_loop: &mut EventLoop<Server>) -> Consensus {
@@ -252,17 +256,17 @@ impl Connection {
 #[cfg(test)]
 mod tests {
     use mio::*;
-    use mio::tcp::*;
-    use std::net::SocketAddr;
+    use std::net::{SocketAddr, TcpListener, TcpStream};
     use std::collections::HashMap;
 
     use capnp::message::ReaderOptions;
     use capnp::serialize;
-    use std::io::{self, Read};
+    use std::io::Read;
     use messages_capnp::connection_preamble;
 
     use network::Server;
     use util::*;
+    use std::thread;
 
     fn new_server(peers: HashMap<ServerId, SocketAddr>) -> (Server, EventLoop<Server>) {
         let addr: SocketAddr = "127.0.0.1:0".parse().unwrap();
@@ -283,23 +287,20 @@ mod tests {
         }
     }
 
-    // FIXME test doesn't work because server doesn't get preamble
+    // FIXME  serialize::read_message blocks
     #[test]
     fn test_peer_connect() {
         let peer_id = ServerId(1);
 
-        let peer_listener = TcpListener::bind(&"127.0.0.1:0".parse().unwrap()).unwrap();
+        let peer_listener = TcpListener::bind("127.0.0.1:0").unwrap();
 
         let mut peers = HashMap::new();
         peers.insert(peer_id, peer_listener.local_addr().unwrap());
+
         let (mut server, mut event_loop) = new_server(peers);
 
-        let op = peer_listener.accept().unwrap();
+        let (mut stream, _) = peer_listener.accept().unwrap();
 
-        match op {
-            Some((mut stream, _)) => assert_eq!(ServerId(0), read_server_preamble(&mut stream)),
-            None => panic!("unexpected"),
-        }
-
+        assert_eq!(ServerId(0), read_server_preamble(&mut stream));
     }
 }
