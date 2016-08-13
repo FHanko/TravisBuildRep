@@ -1,3 +1,4 @@
+#![crate_name = "PaenkoDb"]
 #![feature(plugin)]
 #![plugin(clippy)]
 //Perm allow (don't care)
@@ -15,6 +16,8 @@ extern crate capnp;
 extern crate capnp_nonblock;
 extern crate uuid;
 extern crate rand;
+#[macro_use]
+extern crate log;
 
 pub mod network;
 pub mod messages;

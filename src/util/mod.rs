@@ -10,7 +10,7 @@ impl ServerId {
 }
 
 #[derive(Default)]
-pub struct ClientId(Uuid);
+pub struct ClientId(pub Uuid);
 
 impl ClientId {
     pub fn new() -> Self {
@@ -22,8 +22,8 @@ impl ClientId {
     }
 }
 
-#[derive(Clone, Copy)]
-pub struct Term(u64);
+#[derive(Copy,Clone)]
+pub struct Term(pub u64);
 
 impl Term {
     pub fn as_u64(&self) -> u64 {
@@ -43,7 +43,8 @@ impl Into<u64> for Term {
     }
 }
 
-pub struct LogIndex(u64);
+#[derive(Copy,Clone)]
+pub struct LogIndex(pub u64);
 
 impl LogIndex {
     pub fn as_u64(&self) -> u64 {

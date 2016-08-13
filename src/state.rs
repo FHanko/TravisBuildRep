@@ -1,4 +1,4 @@
-use util::ServerId;
+use util::{ServerId, Term, LogIndex};
 use std::collections::HashSet;
 
 #[derive(Clone, Copy)]
@@ -11,9 +11,9 @@ enum State {
 #[derive(Clone)]
 pub struct StateMachine {
     server_id: ServerId,
-    current_term: u64,
-    commit_index: u64,
-    last_applied: u64,
+    current_term: Term,
+    commit_index: LogIndex,
+    last_applied: LogIndex,
     leader_id: Option<ServerId>,
     state: State,
 
@@ -27,9 +27,9 @@ impl StateMachine {
     pub fn new(server_id: ServerId) -> Self {
         StateMachine {
             server_id: server_id,
-            current_term: 0,
-            commit_index: 0,
-            last_applied: 0,
+            current_term: Term(0),
+            commit_index: LogIndex(0),
+            last_applied: LogIndex(0),
             leader_id: None,
             state: State::Follower,
             follower_state: Some(FollowerState::new()),
@@ -38,8 +38,10 @@ impl StateMachine {
         }
     }
 
+    // TODO
     pub fn set_term(&mut self, i: u64) {
-        self.current_term = i;
+        // self.current_term = i;
+        unimplemented!()
     }
 
     pub fn set_leader(&mut self, leader_id: ServerId) {
@@ -47,15 +49,16 @@ impl StateMachine {
     }
 
     pub fn commit(&mut self) {
-        self.commit_index += 1;
+        // self.commit_index += 1;
+        unimplemented!()
     }
 
-    pub fn apply(&mut self) {
+    pub fn append_entry(&mut self) {
         match self.state {
             State::Follower => {
-                match self.follower_state.clone() {
+                match self.follower_state {
                     Some(mut follower_state) => {
-                        follower_state.apply();
+                        follower_state.append_entry();
                     }
                     None => panic!("follower_state is None"),
                 }
@@ -63,15 +66,15 @@ impl StateMachine {
             State::Candidate => {
                 match self.candidate_state.clone() {
                     Some(mut candidate_state) => {
-                        candidate_state.apply();
+                        candidate_state.append_entry();
                     }
                     None => panic!("candidate_state is None"),
                 }
             }
             State::Leader => {
-                match self.leader_state.clone() {
+                match self.leader_state {
                     Some(mut leader_state) => {
-                        leader_state.apply(self);
+                        leader_state.append_entry(self);
                     }
                     None => panic!("leader_state is None"),
                 }
@@ -82,7 +85,7 @@ impl StateMachine {
     pub fn election_timeout(self) {
         match self.state {
             State::Follower => {
-                match self.follower_state.clone() {
+                match self.follower_state {
                     Some(follower_state) => {
 
                         // Transition to candidate
@@ -102,7 +105,7 @@ impl StateMachine {
                 }
             }
             State::Leader => {
-                match self.leader_state.clone() {
+                match self.leader_state {
                     Some(leader_state) => {
                         leader_state.timeout();
                     }
@@ -110,6 +113,10 @@ impl StateMachine {
                 }
             }
         }
+    }
+
+    pub fn heartbeat_timeout(self) {
+        debug!("Heartbeat timeout");
     }
 }
 
@@ -123,12 +130,12 @@ impl FollowerState {
         FollowerState { voted_for: None }
     }
 
-    fn apply(&mut self) {
+    fn append_entry(&mut self) {
         unimplemented!()
     }
 
     fn timeout(self) {
-        unimplemented!()
+        debug!("Follower timeout")
     }
 
     fn vote_for(&mut self, v: ServerId) {
@@ -154,12 +161,12 @@ impl CandidateState {
         c
     }
 
-    fn apply(&mut self) {
+    fn append_entry(&mut self) {
         unimplemented!()
     }
 
     fn timeout(self) {
-        unimplemented!()
+        debug!("Candidate timeout")
     }
 
     fn got_voted(&mut self, v: ServerId) {
@@ -175,21 +182,18 @@ impl LeaderState {
         LeaderState
     }
 
-    fn apply(&mut self, s: &StateMachine) {
+    fn append_entry(&mut self, s: &StateMachine) {
         match s.leader_id {
             Some(leader_id) => {
                 assert_eq!(leader_id, s.server_id);
 
                 unimplemented!()
             }
-            None => {
-                panic!("Something didn't worked out! You cannot apply a message when no leader is \
-                        chosen")
-            }
+            None => panic!("Something didn't work! There is no leader!"),
         }
     }
 
     fn timeout(self) {
-        unimplemented!()
+        debug!("Leader timeout")
     }
 }
