@@ -43,7 +43,7 @@ impl Into<u64> for Term {
     }
 }
 
-#[derive(Copy,Clone,Debug,Default)]
+#[derive(Copy,Clone,Debug,Default,PartialEq)]
 pub struct LogIndex(pub u64);
 
 impl LogIndex {

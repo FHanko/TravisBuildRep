@@ -1,9 +1,7 @@
-use util::{ServerId, Term};
-
-pub type Message = [u8];
+use util::{ServerId, Term, LogIndex};
 
 // TODO change primitives types to structs; see commit_index
-pub trait Log {
+pub trait Log: Clone + 'static {
     fn vote_for(&mut self, id: ServerId);
     fn get_voted_for(&self) -> Option<ServerId>;
 
@@ -13,14 +11,18 @@ pub trait Log {
     fn get_commitIndex(&self) -> u64;
     fn set_commitIndex(&mut self, index: u64);
 
-    fn write(&self, m: &Message);
-    fn read(&self) -> &Message;
+    fn write(&self, m: &[u8]);
+    fn read(&self, index: u64) -> (Term, &Vec<u8>);
 
     // Delete all entries starting from i
     fn truncate(&mut self, i: u16);
+
+    fn get_latest_log_index(&self) -> LogIndex;
+    fn get_latest_log_term(&self) -> Term;
 }
 
-#[derive(Debug,Default)]
+// TODO seperate to an extra file
+#[derive(Debug,Default,Clone)]
 pub struct VLog {
     currentTerm: Term,
     votedFor: Option<ServerId>,
@@ -61,15 +63,24 @@ impl Log for VLog {
         self.commitIndex = index;
     }
 
-    fn write(&self, m: &Message) {
+    fn write(&self, m: &[u8]) {
         unimplemented!();
     }
-    fn read(&self) -> &Message {
-        unimplemented!();
+    fn read(&self, index: u64) -> (Term, &Vec<u8>) {
+        let (term, ref bytes) = self.log[(index - 1) as usize];
+        (term, bytes)
     }
 
     // Delete all entries starting from i
     fn truncate(&mut self, i: u16) {
         self.log.truncate(i as usize);
+    }
+
+    fn get_latest_log_term(&self) -> Term {
+        unimplemented!()
+    }
+
+    fn get_latest_log_index(&self) -> LogIndex {
+        LogIndex(self.log.len() as u64)
     }
 }

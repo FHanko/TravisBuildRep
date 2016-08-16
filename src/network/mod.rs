@@ -11,13 +11,14 @@ use state::StateMachine;
 use util::ServerId;
 use messages::rpc::server_connection_preamble;
 use std::collections::HashMap;
+use io::{Log, VLog};
 
-pub struct Server {
+pub struct Server<L: Log + Clone> {
     pub id: ServerId,
     pub server: TcpListener,
     pub connections: Slab<Connection>,
     addr: SocketAddr,
-    consensus: Option<Consensus>,
+    consensus: Option<Consensus<L>>,
 }
 
 #[derive(Copy,Clone)]
@@ -28,10 +29,11 @@ pub enum ServerTimeout {
 
 const SERVER: Token = Token(0);
 
-impl Server {
+impl<L: Log + Clone> Server<L> {
     pub fn new(localAddr: SocketAddr,
-               peers: HashMap<ServerId, SocketAddr>)
-               -> (Server, EventLoop<Server>) {
+               peers: HashMap<ServerId, SocketAddr>,
+               log: L)
+               -> (Server<L>, EventLoop<Server<L>>) {
 
         debug!("Start program");
 
@@ -50,7 +52,7 @@ impl Server {
             consensus: None,
         };
 
-        let consensus = myServer.init_consensus(&mut event_loop);
+        let consensus = myServer.init_consensus(&mut event_loop, log);
         myServer.consensus = Some(consensus);
 
         // TODO better error handling
@@ -81,16 +83,17 @@ impl Server {
     }
 
     pub fn run(local_addr: SocketAddr,
-               peers: HashMap<ServerId, SocketAddr>)
-               -> (Server, EventLoop<Server>) {
-        let (mut server, mut event_loop) = Server::new(local_addr, peers);
+               peers: HashMap<ServerId, SocketAddr>,
+               log: L)
+               -> (Server<L>, EventLoop<Server<L>>) {
+        let (mut server, mut event_loop) = Server::new(local_addr, peers, log);
 
         event_loop.run(&mut server);
 
         (server, event_loop)
     }
 
-    fn init_consensus(&self, event_loop: &mut EventLoop<Server>) -> Consensus {
+    fn init_consensus(&self, event_loop: &mut EventLoop<Server<L>>, log: L) -> Consensus<L> {
         let heartbeat = ConsensusTimeout::HeartbeatTimeout;
         let electionTimeout = ConsensusTimeout::ElectionTimeout;
 
@@ -105,12 +108,13 @@ impl Server {
             heartbeat_handler: heartbeat,
             election_handler: election,
             state_machine: state_machine,
+            log: log,
         }
     }
 
 
     pub fn set_timeout(&self,
-                       event_loop: &mut EventLoop<Server>,
+                       event_loop: &mut EventLoop<Server<L>>,
                        timeout_type: ServerTimeout)
                        -> Option<Timeout> {
         match timeout_type {
@@ -122,11 +126,11 @@ impl Server {
     }
 }
 
-impl Handler for Server {
+impl<L: Log + Clone> Handler for Server<L> {
     type Message = ();
     type Timeout = ServerTimeout;
 
-    fn ready(&mut self, event_loop: &mut EventLoop<Server>, token: Token, events: EventSet) {
+    fn ready(&mut self, event_loop: &mut EventLoop<Server<L>>, token: Token, events: EventSet) {
         match token {
             SERVER => {
                 match self.server.accept() {
@@ -155,7 +159,7 @@ impl Handler for Server {
         }
     }
 
-    fn timeout(&mut self, event_loop: &mut EventLoop<Server>, timeout: Self::Timeout) {
+    fn timeout(&mut self, event_loop: &mut EventLoop<Server<L>>, timeout: Self::Timeout) {
         match timeout {
             ServerTimeout::NetworkTimeout => {
                 error!("There is a network timeout");
@@ -187,11 +191,11 @@ impl Connection {
         }
     }
 
-    pub fn ready(&mut self,
-                 event_loop: &mut EventLoop<Server>,
-                 events: EventSet,
-                 id: ServerId,
-                 addr: SocketAddr) {
+    pub fn ready<L: Log + Clone>(&mut self,
+                                 event_loop: &mut EventLoop<Server<L>>,
+                                 events: EventSet,
+                                 id: ServerId,
+                                 addr: SocketAddr) {
 
         if events.is_readable() {
             let message = Self::read(self);
@@ -215,7 +219,9 @@ impl Connection {
         Self::reregister(self, event_loop, events);
     }
 
-    fn reregister(&self, event_loop: &mut EventLoop<Server>, old_event_set: EventSet) {
+    fn reregister<L: Log + Clone>(&self,
+                                  event_loop: &mut EventLoop<Server<L>>,
+                                  old_event_set: EventSet) {
         let mut event_set = EventSet::none();
         if old_event_set.is_readable() {
             event_set = EventSet::writable();

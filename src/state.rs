@@ -2,7 +2,7 @@ use util::{ServerId, Term, LogIndex};
 use std::collections::HashSet;
 
 #[derive(Clone, Copy)]
-enum State {
+pub enum State {
     Follower,
     Leader,
     Candidate,
@@ -11,11 +11,11 @@ enum State {
 #[derive(Clone)]
 pub struct StateMachine {
     server_id: ServerId,
-    current_term: Term,
-    commit_index: LogIndex,
+    pub current_term: Term,
+    pub commit_index: LogIndex,
     last_applied: LogIndex,
     leader_id: Option<ServerId>,
-    state: State,
+    pub state: State,
 
     // states
     follower_state: Option<FollowerState>,
@@ -51,35 +51,6 @@ impl StateMachine {
     pub fn commit(&mut self) {
         // self.commit_index += 1;
         unimplemented!()
-    }
-
-    pub fn append_entry(&mut self) {
-        match self.state {
-            State::Follower => {
-                match self.follower_state {
-                    Some(mut follower_state) => {
-                        follower_state.append_entry();
-                    }
-                    None => panic!("follower_state is None"),
-                }
-            }
-            State::Candidate => {
-                match self.candidate_state.clone() {
-                    Some(mut candidate_state) => {
-                        candidate_state.append_entry();
-                    }
-                    None => panic!("candidate_state is None"),
-                }
-            }
-            State::Leader => {
-                match self.leader_state {
-                    Some(mut leader_state) => {
-                        leader_state.append_entry(self);
-                    }
-                    None => panic!("leader_state is None"),
-                }
-            }
-        }
     }
 
     pub fn election_timeout(self) {
@@ -130,10 +101,6 @@ impl FollowerState {
         FollowerState { voted_for: None }
     }
 
-    fn append_entry(&mut self) {
-        unimplemented!()
-    }
-
     fn timeout(self) {
         debug!("Follower timeout")
     }
@@ -161,10 +128,6 @@ impl CandidateState {
         c
     }
 
-    fn append_entry(&mut self) {
-        unimplemented!()
-    }
-
     fn timeout(self) {
         debug!("Candidate timeout")
     }
@@ -180,17 +143,6 @@ struct LeaderState;
 impl LeaderState {
     fn new() -> Self {
         LeaderState
-    }
-
-    fn append_entry(&mut self, s: &StateMachine) {
-        match s.leader_id {
-            Some(leader_id) => {
-                assert_eq!(leader_id, s.server_id);
-
-                unimplemented!()
-            }
-            None => panic!("Something didn't work! There is no leader!"),
-        }
     }
 
     fn timeout(self) {
