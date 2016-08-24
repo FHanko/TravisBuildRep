@@ -1,5 +1,6 @@
 use util::{ServerId, Term, LogIndex};
-use std::collections::HashSet;
+use std::collections::{HashSet, HashMap};
+use std::net::SocketAddr;
 
 #[derive(Clone, Copy,Eq,PartialEq,Debug)]
 pub enum State {
@@ -14,7 +15,7 @@ pub struct StateHandler {
     pub current_term: Term,
     pub commit_index: LogIndex,
     last_applied: LogIndex,
-    leader_id: Option<ServerId>,
+    pub leader_id: Option<ServerId>,
     pub state: State,
 
     // states
@@ -38,10 +39,14 @@ impl StateHandler {
         }
     }
 
-    // TODO
     pub fn set_term(&mut self, i: u64) {
-        // self.current_term = i;
-        unimplemented!()
+        self.current_term = Term(i);
+    }
+
+    pub fn next_term(&mut self) {
+        let old = self.current_term.as_u64();
+
+        self.current_term = Term(old + 1);
     }
 
     pub fn set_leader(&mut self, leader_id: ServerId) {
@@ -53,41 +58,29 @@ impl StateHandler {
         unimplemented!()
     }
 
-    pub fn election_timeout(self) {
-        match self.state {
-            State::Follower => {
-                match self.follower_state {
-                    Some(follower_state) => {
-
-                        // Transition to candidate
-
-
-                        follower_state.timeout();
-                    }
-                    None => panic!("follower_state is None"),
-                }
-            }
-            State::Candidate => {
-                match self.candidate_state.clone() {
-                    Some(candidate_state) => {
-                        candidate_state.timeout();
-                    }
-                    None => panic!("candidate_state is None"),
-                }
-            }
-            State::Leader => {
-                match self.leader_state {
-                    Some(leader_state) => {
-                        leader_state.timeout();
-                    }
-                    None => panic!("leader_state is None"),
-                }
-            }
-        }
-    }
-
     pub fn heartbeat_timeout(self) {
         debug!("Heartbeat timeout");
+    }
+
+    pub fn transition_to_follower(&mut self, leader_id: ServerId) {
+        self.state = State::Follower;
+        self.set_leader(leader_id);
+        self.follower_state = Some(FollowerState::new());
+    }
+
+    pub fn transition_to_candidate(&mut self) {
+        self.next_term();
+        self.state = State::Candidate;
+        self.candidate_state = Some(CandidateState::new(self.server_id));
+    }
+
+    pub fn transition_to_leader(&mut self,
+                                peers: &HashMap<ServerId, SocketAddr>,
+                                log_length: u64) {
+        assert_eq!(self.state, State::Candidate);
+        self.leader_id = Some(self.server_id);
+        self.state = State::Leader;
+        self.leader_state = Some(LeaderState::new(peers, log_length));
     }
 }
 
@@ -99,10 +92,6 @@ struct FollowerState {
 impl FollowerState {
     fn new() -> Self {
         FollowerState { voted_for: None }
-    }
-
-    fn timeout(self) {
-        debug!("Follower timeout")
     }
 
     fn vote_for(&mut self, v: ServerId) {
@@ -123,29 +112,35 @@ impl CandidateState {
             votes: HashSet::new(),
         };
 
-        c.got_voted(s);
+        c.vote(s);
 
         c
     }
 
-    fn timeout(self) {
-        debug!("Candidate timeout")
-    }
-
-    fn got_voted(&mut self, v: ServerId) {
+    fn vote(&mut self, v: ServerId) {
         self.votes.insert(v);
     }
 }
 
-#[derive(Clone,Copy)]
-struct LeaderState;
+#[derive(Clone)]
+struct LeaderState {
+    next_index: HashMap<ServerId, LogIndex>,
+    match_index: HashMap<ServerId, LogIndex>,
+}
 
 impl LeaderState {
-    fn new() -> Self {
-        LeaderState
-    }
+    fn new(peers: &HashMap<ServerId, SocketAddr>, log_length: u64) -> Self {
+        let mut next_index: HashMap<ServerId, LogIndex> = HashMap::new();
+        let mut match_index: HashMap<ServerId, LogIndex> = HashMap::new();
 
-    fn timeout(self) {
-        debug!("Leader timeout")
+        peers.keys().map(|peer| {
+            next_index.insert(*peer, LogIndex(log_length + 1));
+            match_index.insert(*peer, LogIndex(0));
+        });
+
+        LeaderState {
+            next_index: next_index,
+            match_index: match_index,
+        }
     }
 }

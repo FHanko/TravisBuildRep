@@ -19,6 +19,7 @@ pub struct Server<L: Log + Clone> {
     pub connections: Slab<Connection>,
     addr: SocketAddr,
     pub consensus: Option<Consensus<L>>,
+    pub peers: HashMap<ServerId, SocketAddr>,
 }
 
 #[derive(Copy,Clone)]
@@ -50,6 +51,7 @@ impl<L: Log + Clone> Server<L> {
             connections: Slab::new_starting_at(Token(1), 257),
             addr: localAddr,
             consensus: None,
+            peers: peers.clone(),
         };
 
         let consensus = myServer.init_consensus(&mut event_loop, log);
@@ -170,7 +172,7 @@ impl<L: Log + Clone> Handler for Server<L> {
                         self.consensus.clone().unwrap().heartbeat_timeout(&self, event_loop);
                     }
                     ConsensusTimeout::ElectionTimeout => {
-                        self.consensus.clone().unwrap().election_timeout(&self, event_loop);
+                        self.consensus.clone().unwrap().election_timeout(self, event_loop);
                     }
                 }
             }
@@ -240,7 +242,7 @@ impl Connection {
         self.socket.read_message().map_err(From::from)
     }
 
-    fn write(&mut self, message: Rc<Builder<HeapAllocator>>) -> Result<()> {
+    pub fn write(&mut self, message: Rc<Builder<HeapAllocator>>) -> Result<()> {
         try!(self.socket.write_message(message));
 
         Ok(())

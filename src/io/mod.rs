@@ -3,6 +3,7 @@ use util::{ServerId, Term, LogIndex};
 pub trait Log: Clone + 'static {
     fn vote_for(&mut self, id: ServerId);
     fn get_voted_for(&self) -> Option<ServerId>;
+    fn reset_vote(&mut self);
 
     fn set_term(&mut self, t: Term);
     fn get_term(&self) -> Option<Term>;
@@ -41,13 +42,19 @@ impl Log for VLog {
     fn vote_for(&mut self, id: ServerId) {
         self.votedFor = Some(id);
     }
+
     fn get_voted_for(&self) -> Option<ServerId> {
         self.votedFor
+    }
+
+    fn reset_vote(&mut self) {
+        self.votedFor = None;
     }
 
     fn set_term(&mut self, t: Term) {
         self.currentTerm = t;
     }
+
     fn get_term(&self) -> Option<Term> {
         Some(self.currentTerm)
     }
@@ -67,7 +74,13 @@ impl Log for VLog {
     }
 
     fn get_latest_log_term(&self) -> Term {
-        unimplemented!()
+        let length = self.log.len() as usize;
+
+        if (length != 0) {
+            self.log[length - 1].0
+        } else {
+            Term(0)
+        }
     }
 
     fn get_latest_log_index(&self) -> LogIndex {
