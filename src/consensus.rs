@@ -1,7 +1,7 @@
 use network::{Server, ServerTimeout};
 use mio::{EventLoop, Timeout};
 use rand::{self, Rng};
-use state::{StateMachine, State};
+use state::{StateHandler, State};
 use util::{LogIndex, ServerId, ClientId, Term};
 use capnp::message::{Reader, ReaderSegments};
 use messages_capnp::{message, append_entries_request, request_vote_request,
@@ -33,7 +33,7 @@ impl ConsensusTimeout {
 pub struct Consensus<L: Log + Clone> {
     pub heartbeat_handler: Timeout,
     pub election_handler: Timeout,
-    pub state_machine: StateMachine,
+    pub state_handler: StateHandler,
     pub log: L,
 }
 
@@ -44,7 +44,7 @@ impl<L: Log + Clone> Consensus<L> {
             .unwrap();
         self.election_handler = handler;
 
-        self.state_machine.clone().election_timeout();
+        self.state_handler.clone().election_timeout();
     }
 
     pub fn heartbeat_timeout(&mut self,
@@ -55,7 +55,7 @@ impl<L: Log + Clone> Consensus<L> {
             .unwrap();
         self.heartbeat_handler = handler;
 
-        self.state_machine.clone().heartbeat_timeout();
+        self.state_handler.clone().heartbeat_timeout();
     }
 
     pub fn apply_message<S>(&mut self, from: ClientId, message: &Reader<S>)
@@ -84,23 +84,23 @@ impl<L: Log + Clone> Consensus<L> {
     fn append_entries_request(&mut self, request: append_entries_request::Reader) {
 
         let leader_term = Term(request.get_term());
-        let my_term = self.state_machine.current_term;
+        let my_term = self.state_handler.current_term;
 
         if leader_term.as_u64() < my_term.as_u64() {
             // TODO add response to leader and delete panic
             panic!("Leader has not a higher term");
         }
 
-        match self.state_machine.state {
+        match self.state_handler.state {
             State::Follower => {
                 if my_term.as_u64() < leader_term.as_u64() {
-                    self.state_machine.set_term(leader_term.as_u64());
+                    self.state_handler.set_term(leader_term.as_u64());
                 }
 
                 let leader_prev_log_index = LogIndex(request.get_prev_log_index());
                 let leader_prev_log_term = Term(request.get_prev_log_term());
 
-                let my_prev_log_index = self.state_machine.commit_index;
+                let my_prev_log_index = self.state_handler.commit_index;
 
                 if my_prev_log_index.as_u64() < leader_prev_log_index.as_u64() {
                     // TODO reply that logs are inconsistent

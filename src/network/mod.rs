@@ -7,7 +7,7 @@ use capnp_nonblock::{MessageStream, Segments};
 use capnp::Result;
 use std::rc::Rc;
 use consensus::{Consensus, ConsensusTimeout};
-use state::StateMachine;
+use state::StateHandler;
 use util::ServerId;
 use messages::rpc::server_connection_preamble;
 use std::collections::HashMap;
@@ -102,12 +102,12 @@ impl<L: Log + Clone> Server<L> {
         let election =
             self.set_timeout(event_loop, ServerTimeout::ConsensusTimeout(electionTimeout)).unwrap();
 
-        let state_machine = StateMachine::new(self.id);
+        let state_handler = StateHandler::new(self.id);
 
         Consensus {
             heartbeat_handler: heartbeat,
             election_handler: election,
-            state_machine: state_machine,
+            state_handler: state_handler,
             log: log,
         }
     }

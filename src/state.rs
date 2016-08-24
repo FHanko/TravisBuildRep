@@ -9,7 +9,7 @@ pub enum State {
 }
 
 #[derive(Clone)]
-pub struct StateMachine {
+pub struct StateHandler {
     server_id: ServerId,
     pub current_term: Term,
     pub commit_index: LogIndex,
@@ -23,9 +23,9 @@ pub struct StateMachine {
     candidate_state: Option<CandidateState>,
 }
 
-impl StateMachine {
+impl StateHandler {
     pub fn new(server_id: ServerId) -> Self {
-        StateMachine {
+        StateHandler {
             server_id: server_id,
             current_term: Term(0),
             commit_index: LogIndex(0),
