@@ -22,7 +22,7 @@ impl ClientId {
     }
 }
 
-#[derive(Copy,Clone,Debug,Default)]
+#[derive(Copy,Clone,Debug,Default,Eq,PartialEq)]
 pub struct Term(pub u64);
 
 impl Term {

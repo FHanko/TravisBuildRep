@@ -88,7 +88,7 @@ impl<L: Log + Clone> Consensus<L> {
 
         if leader_term.as_u64() < my_term.as_u64() {
             // TODO add response to leader and delete panic
-            panic!("Leader has not a higher term");
+            panic!("Current term is higher than leader's term");
         }
 
         match self.state_handler.state {
@@ -117,10 +117,21 @@ impl<L: Log + Clone> Consensus<L> {
                     // TODO reply that logs are inconsistent
                     panic!("logs inconsistent; different terms");
                 } else {
-                    // TODO append entries
-                    unimplemented!()
-                }
+                    if let Ok(entries) = request.get_entries() {
+                        let entries_vec: Vec<(Term, &[u8])> = entries.iter()
+                            .map(|entry| {
+                                (Term::from(entry.get_term()), entry.get_data().unwrap_or(b""))
+                            })
+                            .collect();
 
+                        self.log.append_entries(entries_vec);
+
+                        // TODO implement response to leader
+                    } else {
+                        // TODO allow empty append_entries_request
+                        panic!("no entries in append_entries_request");
+                    }
+                }
             }
             State::Candidate => {
                 self.transition_to_follower();
@@ -142,6 +153,8 @@ impl<L: Log + Clone> Consensus<L> {
         unimplemented!()
     }
 
+    fn append_entry(&mut self) {}
+
     fn request_vote_request(&mut self, request: request_vote_request::Reader) {
         unimplemented!()
     }
@@ -152,5 +165,58 @@ impl<L: Log + Clone> Consensus<L> {
 
     fn request_vote_response(&mut self, request: request_vote_response::Reader) {
         unimplemented!()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::net::SocketAddr;
+    use std::io::Cursor;
+    use std::collections::HashMap;
+    use mio::EventLoop;
+    use capnp::message::{Allocator, Builder, HeapAllocator, ReaderOptions, Reader, ReaderSegments};
+
+    use util::*;
+    use network::Server;
+    use io::{Log, VLog};
+    use state::State;
+    use capnp::serialize::{self, OwnedSegments};
+    use messages::rpc::append_entries_request;
+    use messages_capnp::message;
+
+    fn new_server() -> (Server<VLog>, EventLoop<Server<VLog>>) {
+        let local_addr: SocketAddr = "127.0.0.1:0".parse().unwrap();
+        let log = VLog::new();
+
+        Server::new(local_addr, HashMap::new(), log)
+    }
+
+    fn into_reader<A>(message: &Builder<A>) -> Reader<OwnedSegments>
+        where A: Allocator
+    {
+        let mut buf = Cursor::new(Vec::new());
+
+        serialize::write_message(&mut buf, message).unwrap();
+        buf.set_position(0);
+        serialize::read_message(&mut buf, ReaderOptions::new()).unwrap()
+    }
+
+    #[test]
+    fn test_append_entries_follower() {
+        let (myServer, event_loop) = new_server();
+        let mut entries: Vec<(Term, &[u8])> = Vec::new();
+        entries.push((Term(0), b"my custom command"));
+
+        let mut consensus = myServer.consensus.unwrap().clone();
+
+        let message = append_entries_request(Term(0), LogIndex(0), Term(0), &entries, LogIndex(0));
+
+        let req = into_reader(&*message);
+
+        consensus.apply_message(ClientId::new(), &req);
+
+        assert_eq!(consensus.state_handler.state, State::Follower);
+        assert_eq!(consensus.state_handler.current_term, Term(0));
+        assert_eq!(consensus.log.len(), 1);
     }
 }

@@ -7,7 +7,7 @@ pub trait Log: Clone + 'static {
     fn set_term(&mut self, t: Term);
     fn get_term(&self) -> Option<Term>;
 
-    fn write(&self, m: &[u8]);
+    fn append_entries(&mut self, m: Vec<(Term, &[u8])>);
     fn read(&self, index: u64) -> (Term, &Vec<u8>);
 
     // Delete entry at i
@@ -15,6 +15,8 @@ pub trait Log: Clone + 'static {
 
     fn get_latest_log_index(&self) -> LogIndex;
     fn get_latest_log_term(&self) -> Term;
+
+    fn len(&self) -> usize;
 }
 
 // TODO seperate to an extra file
@@ -50,9 +52,11 @@ impl Log for VLog {
         Some(self.currentTerm)
     }
 
-    fn write(&self, m: &[u8]) {
-        unimplemented!();
+    fn append_entries(&mut self, m: Vec<(Term, &[u8])>) {
+        // m.iter().map(|entry| self.log.push(entry));
+        self.log.extend(m.iter().map(|&(term, command)| (term, command.to_vec())));
     }
+
     fn read(&self, index: u64) -> (Term, &Vec<u8>) {
         let (term, ref bytes) = self.log[(index - 1) as usize];
         (term, bytes)
@@ -68,5 +72,9 @@ impl Log for VLog {
 
     fn get_latest_log_index(&self) -> LogIndex {
         LogIndex(self.log.len() as u64)
+    }
+
+    fn len(&self) -> usize {
+        self.log.len()
     }
 }

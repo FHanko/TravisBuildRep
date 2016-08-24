@@ -1,7 +1,7 @@
 use util::{ServerId, Term, LogIndex};
 use std::collections::HashSet;
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy,Eq,PartialEq,Debug)]
 pub enum State {
     Follower,
     Leader,
