@@ -92,8 +92,9 @@ impl<L: Log + Clone> Consensus<L> {
         let my_term = self.state_handler.current_term;
 
         if leader_term.as_u64() < my_term.as_u64() {
-            // TODO add response to leader and delete panic
-            panic!("Current term is higher than leader's term");
+            let message = messages::append_entries_response_stale_term(my_term);
+            actions.peer_messages.push((from, message));
+            return;
         }
 
         match self.state_handler.state {
@@ -108,8 +109,9 @@ impl<L: Log + Clone> Consensus<L> {
                 let my_prev_log_index = self.state_handler.commit_index;
 
                 if my_prev_log_index.as_u64() < leader_prev_log_index.as_u64() {
-                    // TODO reply that logs are inconsistent
-                    panic!("logs inconsistent; different log index");
+                    let message = messages::append_entries_response_inconsistent_prev_entry(my_term, leader_prev_log_index)
+                    actions.peer_messages.push((from, message));
+                    return;
                 }
 
                 let term = if leader_prev_log_index == LogIndex(0) {
@@ -119,8 +121,9 @@ impl<L: Log + Clone> Consensus<L> {
                 };
 
                 if leader_prev_log_term.as_u64() != term.as_u64() {
-                    // TODO reply that logs are inconsistent
-                    panic!("logs inconsistent; different terms");
+                    let message = messages::append_entries_response_inconsistent_prev_entry(my_term, leader_prev_log_index)
+                    actions.peer_messages.push((from, message));
+                    return;
                 } else {
                     if let Ok(entries) = request.get_entries() {
                         let entries_vec: Vec<(Term, &[u8])> = entries.iter()
@@ -131,7 +134,11 @@ impl<L: Log + Clone> Consensus<L> {
 
                         self.log.append_entries(entries_vec);
 
-                        // TODO implement response to leader
+                        let message = messages::append_entries_response_success(my_term,
+                                                                      self.log
+                                                                          .latest_log_index()
+                                                                          .unwrap());
+                        actions.peer_messages.push((from, message));
                     } else {
                         // TODO allow empty append_entries_request; (heartbeats)
                         panic!("no entries in append_entries_request");
